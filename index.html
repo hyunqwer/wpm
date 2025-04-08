@@ -3,30 +3,28 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Reading Fluency Analyzer (WPM)</title>
+  <title>Reading Fluency Analyzer (OpenAI STT)</title>
   <style>
-    :root{--inner-padding-l:15px;--primary:#5A4BFF}
-    /* 전체 여백 축소 */
-    body{font-family:Arial,sans-serif;padding:10px;margin:0;line-height:1.6;background:#F5F6FF}
-    h1{margin:0 0 1rem 0;font-size:1.4rem}
+    :root{--inner-padding:15px;--primary:#5A4BFF}
+    body{margin:0;padding:10px;font-family:Arial,sans-serif;line-height:1.6;background:#F5F6FF}
+    h1{margin:0 0 1rem;font-size:1.4rem}
     .hidden{display:none}
-    .test-area{padding:5px 15px 10px}
-    .stt-area .top{margin-bottom:2rem}
-    .stt-area textarea{width:100%;border:0;font-size:1.1rem;font-weight:500;line-height:1.6}
-    .speaking-player{display:flex;flex-direction:column;align-items:center;gap:1rem;padding:2rem var(--inner-padding-l) 1.5rem;border:2px solid #CBC1FF;border-radius:16px;background:#fff;min-height:360px}
-    .speaking-player textarea{flex:1 1 auto;min-height:160px;background:transparent;resize:none;text-align:center;overflow-y:auto}
-    .speaking-player textarea::placeholder{color:#C2B7FF;text-align:center;font-size:1.1rem;font-weight:500}
-    .play-area{position:relative}
+    .test-area{padding:5px var(--inner-padding) 10px}
+    .stt-area .top{margin-bottom:1.5rem}
+    #textInput{width:100%;border:0;font-size:1.1rem;font-weight:500;line-height:1.6;background:transparent;resize:none;overflow:hidden}
+    #textInput::placeholder{color:#C2B7FF;text-align:center;font-size:1.1rem;font-weight:500}
+    .speaking-player{padding:1.5rem var(--inner-padding);border:2px solid #CBC1FF;border-radius:16px;background:#fff}
+    .play-area{display:flex;flex-direction:column;align-items:center;margin-top:.75rem}
     .btn-record{width:70px;height:70px;border-radius:50%;border:none;background:var(--primary);display:flex;justify-content:center;align-items:center;cursor:pointer;transition:background .3s}
     .btn-record svg{width:32px;height:32px;fill:#fff}
     .btn-record.recording{background:#FF4B4B}
-    .timer{margin-top:.5rem;font-size:1.25rem;font-weight:700;color:var(--primary);text-align:center}
+    .timer{margin-top:.4rem;font-size:1.25rem;font-weight:700;color:var(--primary)}
     .word.correct{color:green;font-weight:bold}
     .word.incorrect{color:red;font-weight:bold}
   </style>
 </head>
 <body>
-  <h1>Reading Fluency Analyzer (WPM)</h1>
+  <h1>Reading Fluency Analyzer (OpenAI STT)</h1>
   <div class="test-area stt-area">
     <div class="top">
       <label for="levelSelect">📚 윤선생 YES4.0 수준을 선택하세요:</label>
@@ -34,93 +32,109 @@
         <option value="RS3">Rising Star 3</option><option value="RS4">Rising Star 4</option><option value="AS5">All-Star 5</option><option value="AS6">All-Star 6</option><option value="MVP">MVP</option><option value="MS12">중고등 1~2</option><option value="MS34">중고등 3~4</option><option value="MS56">중고등 5~6</option><option value="MS79">중고등 7~9</option>
       </select>
     </div>
+
     <div class="speaking-player">
       <textarea id="textInput" placeholder="레벨을 선택하면 텍스트가 표시됩니다."></textarea>
-      <div class="play-area">
-        <button id="recordBtn" class="btn-record" aria-label="record">
-          <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 14 0h-2Zm-5 9a7 7 0 0 0 7-7h-2a5 5 0 0 1-10 0H5a7 7 0 0 0 7 7Z"/></svg>
-        </button>
-        <div id="timer" class="timer hidden">00:00</div>
-      </div>
     </div>
+
+    <div class="play-area">
+      <button id="recordBtn" class="btn-record" aria-label="record">
+        <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 14 0h-2Zm-5 9a7 7 0 0 0 7-7h-2a5 5 0 0 1-10 0H5a7 7 0 0 0 7 7Z"/></svg>
+      </button>
+      <div id="timer" class="timer hidden">00:00</div>
+    </div>
+
     <div class="results" style="margin-top:1rem">
-      <h2 style="margin:0 0 .5rem 0">📣 음성 인식 결과:</h2>
+      <h2 style="margin:0 0 .5rem">📣 음성 인식 결과:</h2>
       <div id="outputText"></div>
-      <h3 style="margin:.75rem 0 .25rem 0">📊 분석 결과</h3>
+      <h3 style="margin:.75rem 0 .25rem">📊 분석 결과</h3>
       <p style="margin:.25rem 0">읽은 시간: <span id="duration"></span>초</p>
       <p style="margin:.25rem 0">WPM: <span id="wpm"></span></p>
       <p style="margin:.25rem 0">WCPM: <span id="wcpm"></span></p>
     </div>
   </div>
 
-  <script>
-    const texts={RS3:`Where is the fox? The fox is on the box. Where is the snake? The snake is in the lake. Where am I? I am right here!`,RS4:`I am a member of a reading club in my school. We meet every Wednesday and Friday. We meet in the club room for an hour. We read a book a week.`,AS5:`Before there were cameras, people asked someone else to paint their portraits. This was the only way that you could have a picture of yourself. Old portraits are very realistic and look like photos.`,AS6:`Do you want to get into the drama club? You need to pass the audition first. Don't be nervous during the audition. You should be comfortable on the stage. Stand up straight. Then, your body and face will look better. Smile and speak loudly to show confidence. Do you need to sing during your audition? If so, warm up your voice and drink plenty of water beforehand.`,MVP:`Danny Johnson was eighty-six years old. Every day, he played chess with his friends. They always talked about their childhoods. Danny liked to tell his friends stories and drink tea. One day, Danny was having a conversation with his friend, Carl. "What do you remember about your mother?" Carl asked. Danny thought about her and smiled. She died from an illness many years ago.`,MS12:`Many kinds of music can affect our body in positive ways. Music can help reduce pain. It can also improve physical performance. Because music affects the whole brain, it can have surprising benefits for learning languages, improving memory, and focusing. Music affects our feelings, too. Listening to music can help us work more effectively. It can also help us sleep more easily and decrease stress.`,MS34:`Everyone needs goals. Having goals makes you more successful because they keep your mind on what is really important to you. However, your goals can change at different times in your life. Your goals when you were ten are very different from your goals when you are twenty. My major goals are to get a part-time job and to master the English language. In conclusion, it is important to have goals. When you have clear goals, it is easier to stay focused.`,MS56:`People love Broadway musicals because they combine music, song, and dance. These elements move the plot and highlight action. They also energize an audience. People sit in their seats and tap their feet to the music. Entire audiences hum along. People return to the same show time after time because they become involved in the enthusiasm of a live performance.`,MS79:`The earth is a dynamic planet, constantly changing. But the change occurs so slowly that, to humans, the earth seems stable. Geologists believe that the earth changes because of the movement of plates on the earth's surface. This theory, called plate tectonics, says the earth is covered by seven major plates and several minor plates. These plates move away from each other, crash into each other, and grind against each other. At the junctions of the plates, we find dramatic geologic activity such as earthquakes, volcanoes, and mountain building.`};
+<script>
+// ---------- 텍스트 데이터 ----------
+const texts={RS3:`Where is the fox? The fox is on the box. Where is the snake? The snake is in the lake. Where am I? I am right here!`,RS4:`I am a member of a reading club in my school. We meet every Wednesday and Friday. We meet in the club room for an hour. We read a book a week.`,AS5:`Before there were cameras, people asked someone else to paint their portraits. This was the only way that you could have a picture of yourself. Old portraits are very realistic and look like photos.`,AS6:`Do you want to get into the drama club? You need to pass the audition first. Don't be nervous during the audition. You should be comfortable on the stage. Stand up straight. Then, your body and face will look better. Smile and speak loudly to show confidence. Do you need to sing during your audition? If so, warm up your voice and drink plenty of water beforehand.`,MVP:`Danny Johnson was eighty-six years old. Every day, he played chess with his friends. They always talked about their childhoods. Danny liked to tell his friends stories and drink tea. One day, Danny was having a conversation with his friend, Carl. "What do you remember about your mother?" Carl asked. Danny thought about her and smiled. She died from an illness many years ago.`,MS12:`Many kinds of music can affect our body in positive ways. Music can help reduce pain. It can also improve physical performance. Because music affects the whole brain, it can have surprising benefits for learning languages, improving memory, and focusing. Music affects our feelings, too. Listening to music can help us work more effectively. It can also help us sleep more easily and decrease stress.`,MS34:`Everyone needs goals. Having goals makes you more successful because they keep your mind on what is really important to you. However, your goals can change at different times in your life. Your goals when you were ten are very different from your goals when you are twenty. My major goals are to get a part-time job and to master the English language. In conclusion, it is important to have goals. When you have clear goals, it is easier to stay focused.`,MS56:`People love Broadway musicals because they combine music, song, and dance. These elements move the plot and highlight action. They also energize an audience. People sit in their seats and tap their feet to the music. Entire audiences hum along. People return to the same show time after time because they become involved in the enthusiasm of a live performance.`,MS79:`The earth is a dynamic planet, constantly changing. But the change occurs so slowly that, to humans, the earth seems stable. Geologists believe that the earth changes because of the movement of plates on the earth's surface. This theory, called plate tectonics, says the earth is covered by seven major plates and several minor plates. These plates move away from each other, crash into each other, and grind against each other. At the junctions of the plates, we find dramatic geologic activity such as earthquakes, volcanoes, and mountain building.`};
 
-    const $=id=>document.getElementById(id);
-    const levelSelect=$("levelSelect"),textInput=$("textInput"),recordBtn=$("recordBtn"),timerEl=$("timer"),output=$("outputText"),wpmEl=$("wpm"),wcpmEl=$("wcpm"),durationEl=$("duration");
-    levelSelect.onchange=e=>textInput.value=texts[e.target.value];
-    textInput.value=texts.RS3;
+// ---------- DOM ----------
+const $=id=>document.getElementById(id);
+const levelSelect=$("levelSelect"),textInput=$("textInput"),recordBtn=$("recordBtn"),timerEl=$("timer"),output=$("outputText"),wpmEl=$("wpm"),wcpmEl=$("wcpm"),durationEl=$("duration");
 
-    let mediaRecorder,audioChunks=[],startTime,endTime,timerInterval;
-    const getMime=()=>['audio/mp4','audio/webm;codecs=opus','audio/webm','audio/mpeg'].find(t=>MediaRecorder.isTypeSupported(t))||'';
+levelSelect.onchange=e=>{textInput.value=texts[e.target.value];autoResize();};
+textInput.value=texts.RS3;
 
-    recordBtn.onclick=async()=>{
-      if(!recordBtn.classList.contains('recording')){
-        try{
-          const mime=getMime();
-          if(!mime) throw new Error('MediaRecorder 미지원');
-          const stream=await navigator.mediaDevices.getUserMedia({audio:true});
-          mediaRecorder=new MediaRecorder(stream,{mimeType:mime});
-          audioChunks=[];
-          mediaRecorder.ondataavailable=e=>e.data.size&&audioChunks.push(e.data);
-          mediaRecorder.start();
-          startTime=Date.now();
-          startTimer();
-          output.textContent='🎤 음성 녹음 중...';
-          recordBtn.classList.add('recording');
-        }catch(err){alert(err.message);}
-      }else{
-        recordBtn.classList.remove('recording');
-        stopTimer();
-        endTime=Date.now();
-        mediaRecorder.stop();
-        mediaRecorder.onstop=async()=>{
-          const mime=mediaRecorder.mimeType;
-          const ext=mime.includes('mp4')?'mp4':mime.includes('mpeg')?'mp3':'webm';
-          const blob=new Blob(audioChunks,{type:mime});
-          if(blob.size<4096){alert('녹음이 너무 짧습니다.');return;}
-          const fd=new FormData();
-          fd.append('file',blob,`audio.${ext}`);
-          fd.append('model','whisper-1');
-          output.textContent='🧠 음성 인식 중(OpenAI)...';
-          try{
-            const res=await fetch('https://frosty-term-f13a.hyunqwer.workers.dev/',{method:'POST',body:fd});
-            if(!res.ok) throw new Error('STT 서버 오류');
-            const json=await res.json();
-            const transcript=json?.text?.trim();
-            if(!transcript) throw new Error('STT 텍스트 없음');
-            analyze(transcript);
-          }catch(e){alert(e.message);}
-        };
-      }
+// ---------- textarea 높이 자동 ----------
+function autoResize(){textInput.style.height='auto';textInput.style.height=textInput.scrollHeight+'px';}
+textInput.addEventListener('input',autoResize);
+window.addEventListener('load',autoResize);
+
+// ---------- 녹음 관련 ----------
+let mediaRecorder,audioChunks=[],startTime,endTime,timerInterval;
+const getMime=()=>['audio/mp4','audio/webm;codecs=opus','audio/webm','audio/mpeg'].find(t=>MediaRecorder.isTypeSupported(t))||'';
+
+recordBtn.onclick=async()=>{
+  if(!recordBtn.classList.contains('recording')){
+    // 녹음 시작
+    try{
+      const mime=getMime();
+      if(!mime) throw new Error('MediaRecorder not supported');
+      const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      mediaRecorder=new MediaRecorder(stream,{mimeType:mime});
+      audioChunks=[];
+      mediaRecorder.ondataavailable=e=>e.data.size&&audioChunks.push(e.data);
+      mediaRecorder.start();
+      startTime=Date.now();
+      startTimer();
+      output.textContent='🎤 음성 녹음 중...';
+      recordBtn.classList.add('recording');
+    }catch(err){alert(err.message);}
+  }else{
+    // 녹음 중지
+    recordBtn.classList.remove('recording');
+    stopTimer();
+    endTime=Date.now();
+    mediaRecorder.stop();
+    mediaRecorder.onstop=async()=>{
+      const mime=mediaRecorder.mimeType;
+      const ext=mime.includes('mp4')?'mp4':mime.includes('mpeg')?'mp3':'webm';
+      const blob=new Blob(audioChunks,{type:mime});
+      if(blob.size<4096){alert('녹음이 너무 짧습니다.');return;}
+      const fd=new FormData();
+      fd.append('file',blob,`audio.${ext}`);
+      fd.append('model','whisper-1');
+      output.textContent='🧠 음성 인식 중(OpenAI)...';
+      try{
+        const res=await fetch('https://frosty-term-f13a.hyunqwer.workers.dev/',{method:'POST',body:fd});
+        if(!res.ok) throw new Error('STT 서버 오류');
+        const json=await res.json();
+        const transcript=json?.text?.trim();
+        if(!transcript) throw new Error('STT 텍스트 없음');
+        analyze(transcript);
+      }catch(e){alert(e.message);}
     };
+  }
+};
 
-    function startTimer(){let s=0;timerEl.textContent='00:00';timerEl.classList.remove('hidden');timerInterval=setInterval(()=>{s++;const m=String(Math.floor(s/60)).padStart(2,'0');const ss=String(s%60).padStart(2,'0');timerEl.textContent=`${m}:${ss}`;},1000);}
-    function stopTimer(){clearInterval(timerInterval);}
+// ---------- 타이머 ----------
+function startTimer(){let s=0;timerEl.textContent='00:00';timerEl.classList.remove('hidden');timerInterval=setInterval(()=>{s++;const m=String(Math.floor(s/60)).padStart(2,'0');const ss=String(s%60).padStart(2,'0');timerEl.textContent=`${m}:${ss}`;},1000);}
+function stopTimer(){clearInterval(timerInterval);}
 
-    function analyze(transcript){
-      const orig=textInput.value.trim().split(/\s+/);
-      const spoken=transcript.split(/\s+/);
-      const clean=w=>w.toLowerCase().replace(/[.,!?—-]/g,'');
-      const lowO=orig.map(clean),lowS=spoken.map(clean);
-      const matched=new Set(),used=new Set();
-      lowO.forEach((w,i)=>{const j=lowS.findIndex((s,idx)=>!used.has(idx)&&s===w);if(j>-1){matched.add(i);used.add(j);}});
-      output.innerHTML=orig.map((w,i)=>`<span class="word ${matched.has(i)?'correct':'incorrect'}">${w}</span>`).join(' ');
-      const sec=(endTime-startTime)/1000;
-      durationEl.textContent=sec.toFixed(1);
-      wpmEl.textContent=((spoken.length/sec)*60).toFixed(1);
-      wcpmEl.textContent=((matched.size/sec)*60).toFixed(1);
-    }
-  </script>
+// ---------- 결과 분석 ----------
+function analyze(transcript){
+  const orig=textInput.value.trim().split(/\s+/);
+  const spoken=transcript.split(/\s+/);
+  const clean=w=>w.toLowerCase().replace(/[.,!?—-]/g,'');
+  const lowO=orig.map(clean),lowS=spoken.map(clean);
+  const matched=new Set(),used=new Set();
+  lowO.forEach((w,i)=>{const j=lowS.findIndex((s,idx)=>!used.has(idx)&&s===w);if(j>-1){matched.add(i);used.add(j);}});
+  output.innerHTML=orig.map((w,i)=>`<span class="word ${matched.has(i)?'correct':'incorrect'}">${w}</span>`).join(' ');
+  const sec=(endTime-startTime)/1000;
+  durationEl.textContent=sec.toFixed(1);
+  wpmEl.textContent=((spoken.length/sec)*60).toFixed(1);
+  wcpmEl.textContent=((matched.size/sec)*60).toFixed(1);
+}
+</script>
 </body>
 </html>
