@@ -15,11 +15,17 @@
 <body>
   <h1>Reading Fluency Analyzer (OpenAI STT)</h1>
 
-  <label for="levelSelect">📚 CEFR 수준을 선택하세요:</label>
+  <label for="levelSelect">📚 윤선생 YES4.0 수준을 선택하세요:</label>
   <select id="levelSelect">
-    <option value="A1">A1 (초급)</option><option value="A2">A2</option>
-    <option value="B1">B1</option><option value="B2">B2</option>
-    <option value="C1">C1</option><option value="C2">C2 (고급)</option>
+    <option value="RS3">Rising Star 3</option>
+    <option value="RS4">Rising Star 4</option>
+    <option value="AS5">All-Star 5</option>
+    <option value="AS6">All-Star 6</option>
+    <option value="MVP">MVP</option>
+    <option value="MS12">중고등 Level 1~2</option>
+    <option value="MS34">중고등 Level 3~4</option>
+    <option value="MS56">중고등 Level 5~6</option>
+    <option value="MS79">중고등 Level 7~9</option>
   </select><br><br>
 
   <label for="textInput">📝 읽을 텍스트:</label>
@@ -42,16 +48,20 @@
   <script>
     /* ---------- 1. 기본 텍스트 세팅 ---------- */
     const texts = {
-      A1:"This is a cat. The cat is black!",
-      A2:"Anna goes to school every day. She walks with her friend and they talk a lot.",
-      B1:"The museum was very interesting. I learned many things about ancient history and art.",
-      B2:"Although the weather was bad, we decided to go hiking because we had prepared everything.",
-      C1:"The documentary explores the ethical implications of artificial intelligence in modern society.",
-      C2:"Contrary to popular belief, economic stagnation can occur even amid technological advancements due to complex sociopolitical factors."
+      RS3:`Where is the fox? The fox is on the box. Where is the snake? The snake is in the lake. Where am I? I am right here!`,
+      RS4:`I am a member of a reading club in my school. We meet every Wednesday and Friday. We meet in the club room for an hour. We read a book a week.`,
+      AS5:`Before there were cameras, people asked someone else to paint their portraits. This was the only way that you could have a picture of yourself. Old portraits are very realistic and look like photos.`,
+      AS6:`Do you want to get into the drama club? You need to pass the audition first. Don't be nervous during the audition. You should be comfortable on the stage. Stand up straight. Then, your body and face will look better. Smile and speak loudly to show confidence. Do you need to sing during your audition? If so, warm up your voice and drink plenty of water beforehand.`,
+      MVP:`Danny Johnson was eighty-six years old. Every day, he played chess with his friends. They always talked about their childhoods. Danny liked to tell his friends stories and drink tea. One day, Danny was having a conversation with his friend, Carl. "What do you remember about your mother?" Carl asked. Danny thought about her and smiled. She died from an illness many years ago.`,
+      MS12:`Many kinds of music can affect our body in positive ways. Music can help reduce pain. It can also improve physical performance. Because music affects the whole brain, it can have surprising benefits for learning languages, improving memory, and focusing. Music affects our feelings, too. Listening to music can help us work more effectively. It can also help us sleep more easily and decrease stress.`,
+      MS34:`Everyone needs goals. Having goals makes you more successful because they keep your mind on what is really important to you. However, your goals can change at different times in your life. Your goals when you were ten are very different from your goals when you are twenty. My major goals are to get a part-time job and to master the English language. In conclusion, it is important to have goals. When you have clear goals, it is easier to stay focused.`,
+      MS56:`People love Broadway musicals because they combine music, song, and dance. These elements move the plot and highlight action. They also energize an audience. People sit in their seats and tap their feet to the music. Entire audiences hum along. People return to the same show time after time because they become involved in the enthusiasm of a live performance.`,
+      MS79:`The earth is a dynamic planet, constantly changing. But the change occurs so slowly that, to humans, the earth seems stable. Geologists believe that the earth changes because of the movement of plates on the earth's surface. This theory, called plate tectonics, says the earth is covered by seven major plates and several minor plates. These plates move away from each other, crash into each other, and grind against each other. At the junctions of the plates, we find dramatic geologic activity such as earthquakes, volcanoes, and mountain building.`
     };
+
     const $ = id => document.getElementById(id);
     $("levelSelect").onchange = e => $("textInput").value = texts[e.target.value];
-    $("textInput").value = texts["A1"];
+    $("textInput").value = texts["RS3"];
 
     /* ---------- 2. 녹음 관련 전역 ---------- */
     let mediaRecorder, audioChunks = [], startTime, endTime;
@@ -61,10 +71,10 @@
     /* ---------- 3. 지원 mimeType 탐색 ---------- */
     function getSupportedMimeType() {
       const preferred = [
-        'audio/mp4',                // iOS Safari 14+ (AAC)
-        'audio/webm;codecs=opus',   // 대부분의 크롬·안드로이드
+        'audio/mp4',
+        'audio/webm;codecs=opus',
         'audio/webm',
-        'audio/mpeg'                // mp3
+        'audio/mpeg'
       ];
       return preferred.find(t => MediaRecorder.isTypeSupported(t)) || '';
     }
@@ -103,7 +113,7 @@
                  : 'webm';
 
         const audioBlob = new Blob(audioChunks, { type: mimeType });
-        if (audioBlob.size < 4096) {   // 4KB 미만(≈0.1초) 녹음이면 오류 처리
+        if (audioBlob.size < 4096) {
           alert("녹음된 오디오가 너무 짧거나 비어 있습니다. 다시 시도해 주세요.");
           startBtn.disabled=false; return;
         }
