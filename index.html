@@ -78,16 +78,17 @@
       C2: "Contrary to popular belief, economic stagnation can occur even amid technological advancements due to complex sociopolitical factors."
     };
 
+    // 초기값 A1으로 셋팅
     levelSelect.onchange = () => {
       const selected = levelSelect.value;
       textInput.value = texts[selected];
     };
-
     textInput.value = texts["A1"];
 
     let mediaRecorder, audioChunks = [];
     let startTime, endTime;
 
+    // 녹음 시작
     startBtn.onclick = async () => {
       startTime = new Date();
       startBtn.disabled = true;
@@ -107,7 +108,8 @@
       mediaRecorder.start();
     };
 
-    stopBtn.onclick = async () => {
+    // 녹음 중지
+    stopBtn.onclick = () => {
       stopBtn.disabled = true;
       endTime = new Date();
       mediaRecorder.stop();
@@ -121,13 +123,25 @@
         outputText.innerHTML = "🧠 음성 인식 중(OpenAI)...";
 
         try {
+          // 1) STT 서버 응답 상태 확인
           const response = await fetch("https://frosty-term-f13a.hyunqwer.workers.dev/", {
             method: "POST",
             body: formData,
           });
+          if (!response.ok) {
+            throw new Error("STT 서버 응답 에러: " + response.status);
+          }
+
+          // 2) JSON 파싱 후 text가 있는지 확인
           const result = await response.json();
-          const transcript = result.text;
+          const transcript = result?.text || ""; // 혹시 text가 없으면 빈 문자열
+
+          if (!transcript) {
+            throw new Error("STT 응답에 텍스트가 없습니다.");
+          }
+
           analyzeResults(transcript);
+
         } catch (err) {
           alert("STT 오류 발생: " + err.message);
         }
@@ -136,12 +150,12 @@
       };
     };
 
+    // 분석 로직
     function analyzeResults(transcript) {
       const original = textInput.value.trim().split(/\s+/);
       const spoken = transcript.trim().split(/\s+/);
 
       const clean = (word) => word.toLowerCase().replace(/[.,!?—-]/g, "");
-
       const lowerOriginal = original.map(clean);
       const lowerSpoken = spoken.map(clean);
 
