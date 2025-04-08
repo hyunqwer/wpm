@@ -5,26 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Reading Fluency Analyzer (OpenAI STT)</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      line-height: 1.6;
-    }
-    textarea {
-      width: 100%;
-      height: 100px;
-    }
-    .word.correct {
-      color: green;
-      font-weight: bold;
-    }
-    .word.incorrect {
-      color: red;
-      font-weight: bold;
-    }
-    .results {
-      margin-top: 20px;
-    }
+    body { font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; }
+    textarea { width: 100%; height: 100px; }
+    .word.correct { color: green; font-weight: bold; }
+    .word.incorrect { color: red; font-weight: bold; }
+    .results { margin-top: 20px; }
   </style>
 </head>
 <body>
@@ -32,15 +17,11 @@
 
   <label for="levelSelect">📚 CEFR 수준을 선택하세요:</label>
   <select id="levelSelect">
-    <option value="A1">A1 (초급)</option>
-    <option value="A2">A2</option>
-    <option value="B1">B1</option>
-    <option value="B2">B2</option>
-    <option value="C1">C1</option>
-    <option value="C2">C2 (고급)</option>
-  </select>
+    <option value="A1">A1 (초급)</option><option value="A2">A2</option>
+    <option value="B1">B1</option><option value="B2">B2</option>
+    <option value="C1">C1</option><option value="C2">C2 (고급)</option>
+  </select><br><br>
 
-  <br /><br />
   <label for="textInput">📝 읽을 텍스트:</label>
   <textarea id="textInput"></textarea>
 
@@ -52,7 +33,6 @@
   <div class="results">
     <h2>📣 음성 인식 결과:</h2>
     <div id="outputText"></div>
-
     <h3>📊 분석 결과</h3>
     <p>읽은 시간: <span id="duration"></span>초</p>
     <p>WPM: <span id="wpm"></span></p>
@@ -60,132 +40,116 @@
   </div>
 
   <script>
-    const textInput = document.getElementById("textInput");
-    const outputText = document.getElementById("outputText");
-    const startBtn = document.getElementById("startBtn");
-    const stopBtn = document.getElementById("stopBtn");
-    const wpmDisplay = document.getElementById("wpm");
-    const wcpmDisplay = document.getElementById("wcpm");
-    const durationDisplay = document.getElementById("duration");
-    const levelSelect = document.getElementById("levelSelect");
-
+    /* ---------- 1. 기본 텍스트 세팅 ---------- */
     const texts = {
-      A1: "This is a cat. The cat is black!",
-      A2: "Anna goes to school every day. She walks with her friend and they talk a lot.",
-      B1: "The museum was very interesting. I learned many things about ancient history and art.",
-      B2: "Although the weather was bad, we decided to go hiking because we had prepared everything.",
-      C1: "The documentary explores the ethical implications of artificial intelligence in modern society.",
-      C2: "Contrary to popular belief, economic stagnation can occur even amid technological advancements due to complex sociopolitical factors."
+      A1:"This is a cat. The cat is black!",
+      A2:"Anna goes to school every day. She walks with her friend and they talk a lot.",
+      B1:"The museum was very interesting. I learned many things about ancient history and art.",
+      B2:"Although the weather was bad, we decided to go hiking because we had prepared everything.",
+      C1:"The documentary explores the ethical implications of artificial intelligence in modern society.",
+      C2:"Contrary to popular belief, economic stagnation can occur even amid technological advancements due to complex sociopolitical factors."
     };
+    const $ = id => document.getElementById(id);
+    $("levelSelect").onchange = e => $("textInput").value = texts[e.target.value];
+    $("textInput").value = texts["A1"];
 
-    // 초기값 A1으로 셋팅
-    levelSelect.onchange = () => {
-      const selected = levelSelect.value;
-      textInput.value = texts[selected];
-    };
-    textInput.value = texts["A1"];
+    /* ---------- 2. 녹음 관련 전역 ---------- */
+    let mediaRecorder, audioChunks = [], startTime, endTime;
+    const startBtn=$("startBtn"), stopBtn=$("stopBtn"),
+          output=$("outputText"), wpm=$("wpm"), wcpm=$("wcpm"), duration=$("duration");
 
-    let mediaRecorder, audioChunks = [];
-    let startTime, endTime;
+    /* ---------- 3. 지원 mimeType 탐색 ---------- */
+    function getSupportedMimeType() {
+      const preferred = [
+        'audio/mp4',                // iOS Safari 14+ (AAC)
+        'audio/webm;codecs=opus',   // 대부분의 크롬·안드로이드
+        'audio/webm',
+        'audio/mpeg'                // mp3
+      ];
+      return preferred.find(t => MediaRecorder.isTypeSupported(t)) || '';
+    }
 
-    // 녹음 시작
+    /* ---------- 4. 녹음 시작 ---------- */
     startBtn.onclick = async () => {
-      startTime = new Date();
-      startBtn.disabled = true;
-      stopBtn.disabled = false;
-      outputText.innerHTML = "🎤 음성 녹음 중...";
+      try {
+        const mimeType = getSupportedMimeType();
+        if (!mimeType) throw new Error("이 브라우저는 MediaRecorder를 지원하지 않습니다.");
 
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorder = new MediaRecorder(stream);
-      audioChunks = [];
+        const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+        mediaRecorder = new MediaRecorder(stream, { mimeType });
+        audioChunks = [];
+        mediaRecorder.ondataavailable = e => e.data.size && audioChunks.push(e.data);
 
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          audioChunks.push(e.data);
-        }
-      };
-
-      mediaRecorder.start();
+        startTime = Date.now();
+        output.innerHTML = "🎤 음성 녹음 중...";
+        startBtn.disabled = true;
+        stopBtn.disabled  = false;
+        mediaRecorder.start();
+      } catch(err) {
+        alert("마이크 접근 실패: " + err.message);
+      }
     };
 
-    // 녹음 중지
+    /* ---------- 5. 녹음 중지 ---------- */
     stopBtn.onclick = () => {
       stopBtn.disabled = true;
-      endTime = new Date();
+      endTime = Date.now();
       mediaRecorder.stop();
 
       mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-        const formData = new FormData();
-        formData.append("file", audioBlob, "audio.webm");
-        formData.append("model", "whisper-1");
+        const mimeType = mediaRecorder.mimeType;
+        const ext = mimeType.includes('mp4') ? 'mp4'
+                 : mimeType.includes('mpeg')? 'mp3'
+                 : 'webm';
 
-        outputText.innerHTML = "🧠 음성 인식 중(OpenAI)...";
-
-        try {
-          // 1) STT 서버 응답 상태 확인
-          const response = await fetch("https://frosty-term-f13a.hyunqwer.workers.dev/", {
-            method: "POST",
-            body: formData,
-          });
-          if (!response.ok) {
-            throw new Error("STT 서버 응답 에러: " + response.status);
-          }
-
-          // 2) JSON 파싱 후 text가 있는지 확인
-          const result = await response.json();
-          const transcript = result?.text || ""; // 혹시 text가 없으면 빈 문자열
-
-          if (!transcript) {
-            throw new Error("STT 응답에 텍스트가 없습니다.");
-          }
-
-          analyzeResults(transcript);
-
-        } catch (err) {
-          alert("STT 오류 발생: " + err.message);
+        const audioBlob = new Blob(audioChunks, { type: mimeType });
+        if (audioBlob.size < 4096) {   // 4KB 미만(≈0.1초) 녹음이면 오류 처리
+          alert("녹음된 오디오가 너무 짧거나 비어 있습니다. 다시 시도해 주세요.");
+          startBtn.disabled=false; return;
         }
 
-        startBtn.disabled = false;
+        const formData = new FormData();
+        formData.append("file", audioBlob, `audio.${ext}`);
+        formData.append("model","whisper-1");
+
+        output.innerHTML = "🧠 음성 인식 중(OpenAI)...";
+
+        try {
+          const res = await fetch("https://frosty-term-f13a.hyunqwer.workers.dev/",{
+            method:"POST", body:formData });
+          if (!res.ok) throw new Error("STT 서버 응답 오류: "+res.status);
+          const json = await res.json();
+          const transcript = json?.text?.trim();
+          if (!transcript) throw new Error("STT 응답에 텍스트가 없습니다.");
+
+          analyzeResults(transcript);
+        } catch(err) {
+          alert("STT 오류 발생: " + err.message);
+        }
+        startBtn.disabled=false;
       };
     };
 
-    // 분석 로직
-    function analyzeResults(transcript) {
-      const original = textInput.value.trim().split(/\s+/);
-      const spoken = transcript.trim().split(/\s+/);
+    /* ---------- 6. 결과 분석 ---------- */
+    function analyzeResults(transcript){
+      const origin   = $("textInput").value.trim().split(/\s+/);
+      const spoken   = transcript.split(/\s+/);
+      const clean = w => w.toLowerCase().replace(/[.,!?—-]/g,"");
+      const lowerO = origin.map(clean), lowerS = spoken.map(clean);
 
-      const clean = (word) => word.toLowerCase().replace(/[.,!?—-]/g, "");
-      const lowerOriginal = original.map(clean);
-      const lowerSpoken = spoken.map(clean);
-
-      const matchedIndexes = new Set();
-      const usedSpokenIndexes = new Set();
-
-      for (let i = 0; i < lowerOriginal.length; i++) {
-        for (let j = 0; j < lowerSpoken.length; j++) {
-          if (!usedSpokenIndexes.has(j) && lowerOriginal[i] === lowerSpoken[j]) {
-            matchedIndexes.add(i);
-            usedSpokenIndexes.add(j);
-            break;
-          }
-        }
-      }
-
-      const result = original.map((word, idx) => {
-        const isCorrect = matchedIndexes.has(idx);
-        return `<span class="word ${isCorrect ? "correct" : "incorrect"}">${word}</span>`;
+      const matched = new Set(), usedS=new Set();
+      lowerO.forEach((w,i)=>{
+        const j = lowerS.findIndex((s,idx)=>!usedS.has(idx)&&s===w);
+        if (j>-1){ matched.add(i); usedS.add(j); }
       });
 
-      outputText.innerHTML = result.join(" ");
+      output.innerHTML = origin.map((w,i)=>
+        `<span class="word ${matched.has(i)?"correct":"incorrect"}">${w}</span>`).join(" ");
 
-      const duration = (endTime - startTime) / 1000;
-      const wpm = (spoken.length / duration) * 60;
-      const wcpm = (matchedIndexes.size / duration) * 60;
-
-      durationDisplay.textContent = duration.toFixed(1);
-      wpmDisplay.textContent = wpm.toFixed(1);
-      wcpmDisplay.textContent = wcpm.toFixed(1);
+      const sec=(endTime-startTime)/1000;
+      duration.textContent = sec.toFixed(1);
+      wpm.textContent  = ((spoken.length   /sec)*60).toFixed(1);
+      wcpm.textContent = ((matched.size/sec)*60).toFixed(1);
     }
   </script>
 </body>
