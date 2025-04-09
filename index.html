@@ -10,17 +10,20 @@
     h1{margin:0 0 1rem;font-size:1.4rem}
     .hidden{display:none}
     .test-area{padding:5px var(--inner-padding) 10px}
-    .stt-area .top{margin-bottom:1.5rem}
+    .stt-area .top{margin-bottom:1.2rem}
     #textInput{width:100%;border:0;font-size:1.1rem;font-weight:500;line-height:1.6;background:transparent;resize:none;overflow:hidden}
     #textInput::placeholder{color:#C2B7FF;text-align:center;font-size:1.1rem;font-weight:500}
-    .speaking-player{padding:1.5rem var(--inner-padding);border:2px solid #CBC1FF;border-radius:16px;background:#fff}
-    .play-area{display:flex;flex-direction:column;align-items:center;margin-top:.75rem}
-    .btn-record{width:70px;height:70px;border-radius:50%;border:none;background:var(--primary);display:flex;justify-content:center;align-items:center;cursor:pointer;transition:background .3s}
-    .btn-record svg{width:32px;height:32px;fill:#fff}
+    .speaking-player{padding:1.2rem var(--inner-padding);border:2px solid #CBC1FF;border-radius:14px;background:#fff}
+    .play-area{display:flex;flex-direction:column;align-items:center;margin-top:.6rem}
+    .btn-record{width:68px;height:68px;border-radius:50%;border:none;background:var(--primary);display:flex;justify-content:center;align-items:center;cursor:pointer;transition:background .3s}
+    .btn-record svg{width:30px;height:30px;fill:#fff}
     .btn-record.recording{background:#FF4B4B}
-    .timer{margin-top:.4rem;font-size:1.25rem;font-weight:700;color:var(--primary)}
+    .timer{margin-top:.3rem;font-size:1.1rem;font-weight:700;color:var(--primary)}
     .word.correct{color:green;font-weight:bold}
     .word.incorrect{color:red;font-weight:bold}
+    table#stats{width:100%;border-collapse:collapse;margin-top:.5rem;font-size:.95rem}
+    #stats th,#stats td{border:1px solid #DDD;padding:4px;text-align:center}
+    #stats th{background:#ECECFF;font-weight:600}
   </style>
 </head>
 <body>
@@ -44,39 +47,44 @@
       <div id="timer" class="timer hidden">00:00</div>
     </div>
 
-    <div class="results" style="margin-top:1rem">
-      <h2 style="margin:0 0 .5rem">📣 음성 인식 결과:</h2>
+    <div class="results" style="margin-top:.8rem">
+      <h2 style="margin:0 0 .4rem">📣 음성 인식 결과:</h2>
       <div id="outputText"></div>
-      <h3 style="margin:.75rem 0 .25rem">📊 분석 결과</h3>
-      <p style="margin:.25rem 0">읽은 시간: <span id="duration"></span>초</p>
-      <p style="margin:.25rem 0">WPM: <span id="wpm"></span></p>
-      <p style="margin:.25rem 0">WCPM: <span id="wcpm"></span></p>
+      <h3 style="margin:.6rem 0 .3rem">📊 분석 결과</h3>
+      <table id="stats">
+        <thead><tr><th>항목</th><th>값</th><th>설명</th></tr></thead>
+        <tbody>
+          <tr><td>읽은 시간(초)</td><td id="t_duration"></td><td>녹음 시작~종료까지 경과</td></tr>
+          <tr><td>전체 읽은 단어 수</td><td id="t_total"></td><td>Whisper가 인식한 총 단어</td></tr>
+          <tr><td>정확히 읽은 단어 수</td><td id="t_correct"></td><td>원문과 일치한 단어</td></tr>
+          <tr><td>오류 단어 수</td><td id="t_incorrect"></td><td>전체 - 정확히 읽은 단어</td></tr>
+          <tr><td>정확도(%)</td><td id="t_acc"></td><td>(정확/전체)×100</td></tr>
+          <tr><td>WPM</td><td id="t_wpm"></td><td>분당 읽은 단어</td></tr>
+          <tr><td>WCPM</td><td id="t_wcpm"></td><td>분당 정확히 읽은 단어</td></tr>
+        </tbody>
+      </table>
     </div>
   </div>
 
 <script>
-// ---------- 텍스트 데이터 ----------
 const texts={RS3:`Where is the fox? The fox is on the box. Where is the snake? The snake is in the lake. Where am I? I am right here!`,RS4:`I am a member of a reading club in my school. We meet every Wednesday and Friday. We meet in the club room for an hour. We read a book a week.`,AS5:`Before there were cameras, people asked someone else to paint their portraits. This was the only way that you could have a picture of yourself. Old portraits are very realistic and look like photos.`,AS6:`Do you want to get into the drama club? You need to pass the audition first. Don't be nervous during the audition. You should be comfortable on the stage. Stand up straight. Then, your body and face will look better. Smile and speak loudly to show confidence. Do you need to sing during your audition? If so, warm up your voice and drink plenty of water beforehand.`,MVP:`Danny Johnson was eighty-six years old. Every day, he played chess with his friends. They always talked about their childhoods. Danny liked to tell his friends stories and drink tea. One day, Danny was having a conversation with his friend, Carl. "What do you remember about your mother?" Carl asked. Danny thought about her and smiled. She died from an illness many years ago.`,MS12:`Many kinds of music can affect our body in positive ways. Music can help reduce pain. It can also improve physical performance. Because music affects the whole brain, it can have surprising benefits for learning languages, improving memory, and focusing. Music affects our feelings, too. Listening to music can help us work more effectively. It can also help us sleep more easily and decrease stress.`,MS34:`Everyone needs goals. Having goals makes you more successful because they keep your mind on what is really important to you. However, your goals can change at different times in your life. Your goals when you were ten are very different from your goals when you are twenty. My major goals are to get a part-time job and to master the English language. In conclusion, it is important to have goals. When you have clear goals, it is easier to stay focused.`,MS56:`People love Broadway musicals because they combine music, song, and dance. These elements move the plot and highlight action. They also energize an audience. People sit in their seats and tap their feet to the music. Entire audiences hum along. People return to the same show time after time because they become involved in the enthusiasm of a live performance.`,MS79:`The earth is a dynamic planet, constantly changing. But the change occurs so slowly that, to humans, the earth seems stable. Geologists believe that the earth changes because of the movement of plates on the earth's surface. This theory, called plate tectonics, says the earth is covered by seven major plates and several minor plates. These plates move away from each other, crash into each other, and grind against each other. At the junctions of the plates, we find dramatic geologic activity such as earthquakes, volcanoes, and mountain building.`};
 
-// ---------- DOM ----------
 const $=id=>document.getElementById(id);
-const levelSelect=$("levelSelect"),textInput=$("textInput"),recordBtn=$("recordBtn"),timerEl=$("timer"),output=$("outputText"),wpmEl=$("wpm"),wcpmEl=$("wcpm"),durationEl=$("duration");
+const levelSelect=$("levelSelect"),textInput=$("textInput"),recordBtn=$("recordBtn"),timerEl=$("timer"),output=$("outputText");
+const dDur=$("t_duration"),dTotal=$("t_total"),dCorrect=$("t_correct"),dIncorrect=$("t_incorrect"),dAcc=$("t_acc"),dWpm=$("t_wpm"),dWcpm=$("t_wcpm");
 
 levelSelect.onchange=e=>{textInput.value=texts[e.target.value];autoResize();};
 textInput.value=texts.RS3;
 
-// ---------- textarea 높이 자동 ----------
 function autoResize(){textInput.style.height='auto';textInput.style.height=textInput.scrollHeight+'px';}
 textInput.addEventListener('input',autoResize);
 window.addEventListener('load',autoResize);
 
-// ---------- 녹음 관련 ----------
 let mediaRecorder,audioChunks=[],startTime,endTime,timerInterval;
 const getMime=()=>['audio/mp4','audio/webm;codecs=opus','audio/webm','audio/mpeg'].find(t=>MediaRecorder.isTypeSupported(t))||'';
 
 recordBtn.onclick=async()=>{
   if(!recordBtn.classList.contains('recording')){
-    // 녹음 시작
     try{
       const mime=getMime();
       if(!mime) throw new Error('MediaRecorder not supported');
@@ -91,7 +99,6 @@ recordBtn.onclick=async()=>{
       recordBtn.classList.add('recording');
     }catch(err){alert(err.message);}
   }else{
-    // 녹음 중지
     recordBtn.classList.remove('recording');
     stopTimer();
     endTime=Date.now();
@@ -112,16 +119,14 @@ recordBtn.onclick=async()=>{
         const transcript=json?.text?.trim();
         if(!transcript) throw new Error('STT 텍스트 없음');
         analyze(transcript);
-      }catch(e){alert(e.message);}
+      }catch(e){alert(e.message);}      
     };
   }
 };
 
-// ---------- 타이머 ----------
 function startTimer(){let s=0;timerEl.textContent='00:00';timerEl.classList.remove('hidden');timerInterval=setInterval(()=>{s++;const m=String(Math.floor(s/60)).padStart(2,'0');const ss=String(s%60).padStart(2,'0');timerEl.textContent=`${m}:${ss}`;},1000);}
-function stopTimer(){clearInterval(timerInterval);}
+function stopTimer(){clearInterval(timerInterval);timerEl.classList.add('hidden');}
 
-// ---------- 결과 분석 ----------
 function analyze(transcript){
   const orig=textInput.value.trim().split(/\s+/);
   const spoken=transcript.split(/\s+/);
@@ -129,11 +134,24 @@ function analyze(transcript){
   const lowO=orig.map(clean),lowS=spoken.map(clean);
   const matched=new Set(),used=new Set();
   lowO.forEach((w,i)=>{const j=lowS.findIndex((s,idx)=>!used.has(idx)&&s===w);if(j>-1){matched.add(i);used.add(j);}});
+
   output.innerHTML=orig.map((w,i)=>`<span class="word ${matched.has(i)?'correct':'incorrect'}">${w}</span>`).join(' ');
-  const sec=(endTime-startTime)/1000;
-  durationEl.textContent=sec.toFixed(1);
-  wpmEl.textContent=((spoken.length/sec)*60).toFixed(1);
-  wcpmEl.textContent=((matched.size/sec)*60).toFixed(1);
+
+  const duration=(endTime-startTime)/1000;
+  const total=spoken.length;
+  const correct=matched.size;
+  const incorrect=total-correct;
+  const acc=total?((correct/total)*100).toFixed(1):'0.0';
+  const wpm=((total/duration)*60).toFixed(1);
+  const wcpm=((correct/duration)*60).toFixed(1);
+
+  dDur.textContent=duration.toFixed(1);
+  dTotal.textContent=total;
+  dCorrect.textContent=correct;
+  dIncorrect.textContent=incorrect;
+  dAcc.textContent=acc;
+  dWpm.textContent=wpm;
+  dWcpm.textContent=wcpm;
 }
 </script>
 </body>
